@@ -9,6 +9,7 @@ Created on Tus Feb 22 2:38:29 2022
 """ updated from previous version. I followed suggestions from reddit members 
 morphicon : suggested to remove shuffle in data distribution and use RNN, LSTM Or XGBoost
 and Very_Large_Cone which suggested to not shuffle the data and split on a time-series
+Very_Large_Cone: catched the mistake of shuffling data
 """
 
 # imports
