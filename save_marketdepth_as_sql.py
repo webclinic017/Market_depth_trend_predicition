@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Dec 28 20:07:20 2020
+Created on TUS FEB 22 22:07:20 2022
 
 @author: alial
 """
@@ -8,7 +8,7 @@ Created on Mon Dec 28 20:07:20 2020
 
 # import libraries
 
-from ib_insync import *
+import ib_insync as ibis
 import numpy as np
 import pandas as pd
 from IPython.display import display, clear_output
@@ -52,18 +52,17 @@ def onTickerUpdate(ticker):
 
 
 
-util.startLoop() #required for ib_insync to use in kernals of jupyter and spyder
-ib = IB() #initialize IB class for IB API Client and Wrapper async version
+ibis.util.startLoop() #required for ib_insync to use in kernals of jupyter and spyder
+ib = ibis.IB() #initialize IB class for IB API Client and Wrapper async version
 ib.disconnect() #to start a new connection disconnect older ones
-ib.connect('104.237.11.181',7497,4) #connect to IB server
+ib.connect('127.0.0.1',7496,4) #connect to IB server
 
 
 ticker_size = [0,0] #initialize arrays for size 
 ticker_price = [0,0] #initialize arrays for price 
 
 
-contract = Future(symbol='ES', lastTradeDateOrContractMonth='20210319',
-                  exchange='GLOBEX', currency='USD') #define contract
+contract = ES_fut = ibis.ContFuture("ES", "GLOBEX", tradingClass="ES", multiplier=50)  #define contract
 
 ib.qualifyContracts(contract) #qualify contract
 
@@ -82,7 +81,7 @@ df_x = pd.DataFrame(index = range(1),
     
 """ initialize sql file """
 
-db = sqlite3.connect(r'C:\Udemy\Interactive Brokers Python API\streaming ES\ES_ticks.db')
+db = sqlite3.connect(r'C:\Udemy\Interactive Brokers Python API\streaming ES\ES_ticks.db') # save data as db file
 c=db.cursor()
 c.execute('DROP TABLE IF EXISTS ES_market_depth')
 # c.execute("CREATE TABLE ES_market_depth (time datetime primary key,bidSize_1 integer, bidPrice_1 real(15,5), askPrice_1 real(15,5), askSize_1 integer, bidSize_2 integer, bidPrice_2 real(15,5), askPrice_2 real(15,5), askSize_2 integer, bidSize_3 integer, bidPrice_3 real(15,5), askPrice_3 real(15,5), askSize_3 integer, bidSize_4 integer, bidPrice_4 real(15,5), askPrice_4 real(15,5), askSize_4 integer, bidSize_5 integer, bidPrice_5 real(15,5), askPrice_5 real(15,5), askSize_5 integer, lastPrice real(15,5))")
@@ -96,4 +95,4 @@ except:
 ib.sleep(2)
 ticker.updateEvent += onTickerUpdate
 
-IB.sleep(15);
+ib.sleep(15);
