@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tus Feb 22 2:38:29 2022
+Created on Sat Feb 26 2:38:29 2022
 
 @author: alial
 """
@@ -22,11 +22,30 @@ from sklearn.preprocessing import MinMaxScaler
 
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import Input, Dense, Dropout, LSTM, GlobalAveragePooling1D
+from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import Callback
+
 
 import tensorflow as tf
 
+#early stop class loded from stackoverflow link: https://stackoverflow.com/questions/53500047/stop-training-in-keras-when-accuracy-is-already-1-0
+class TerminateOnBaseline(Callback):
+    """Callback that terminates training when either acc or val_acc reaches a specified baseline
+    """
+    def __init__(self, monitor='val_loss', baseline=0.9):
+        super(TerminateOnBaseline, self).__init__()
+        self.monitor = monitor
+        self.baseline = baseline
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        val_loss = logs.get(self.monitor)
+        if val_loss is not None:
+            if val_loss <= self.baseline:
+                print('Epoch %d: Reached baseline, terminating training' % (epoch))
+                self.model.stop_training = True
 # The following lines are to setup my GPU for the learning
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -46,6 +65,7 @@ config.gpu_options.allow_growth = True
 
 db = sqlite3.connect(r'C:\Udemy\Interactive Brokers Python API\streaming ES\ES_ticks.db') # Loading the file
 df = pd.read_sql_query("SELECT * from ES_market_depth", db) # converting file into a Dataframe
+# df = pd.read_csv(r'C:\Projects\Market_depth_trend_predicition-main\MarketDepth_data_sample.csv',index_col='index',parse_dates=True)
 df['difference'] = df['lastPrice'].shift(1)-df['lastPrice'] # setting the difference between two tics (current and last tick) and shifting one row up 
 df.dropna(inplace = True) 
 
@@ -70,7 +90,7 @@ df['down_trend'] = np.where(df['direction']==-1,1,0)
 df = pd.concat(objs = (pd.DataFrame(df[df['same']>0].iloc[0:len(df[df['down_trend']>0])]), pd.DataFrame(df[df['up_trend']>0].iloc[0:len(df[df['down_trend']>0])]), pd.DataFrame(df[df['down_trend']>0].iloc[0:len(df[df['down_trend']>0])]))).sort_index()
 
 #Setting X and y
-X = df.iloc[:,1:-6].values
+X = df.iloc[:,1:-3].values
 y = df.iloc[:,-3:].values
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, shuffle= False) #Shuffle set to False
@@ -85,21 +105,22 @@ X_test = scaler.transform(X_test)
 
 
 #setting up the model of tensorflow
-input_layer = Input(shape=(X.shape[1],1))
+input_layer = Input(shape=(X_train.shape[1],1))
 x=input_layer
 for _ in range(5): # five layers
        x = Dropout(0.2)(x) # Dropout to avoid overfitting
-       x = LSTM(50, return_sequences = True)(x) # using LSTM insted of Dense with return sequences to adopt the time sequences
+       x = CuDNNLSTM(X_train.shape[1], return_sequences = True)(x) # using LSTM with return sequences to adopt to time sequences
 x = GlobalAveragePooling1D()(x) # Global averaging to one layer shape to feed to a dense categorigal classification
 output = Dense(y.shape[1], activation='softmax')(x)
 model = Model(inputs=input_layer, outputs=output)
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics = ['acc'])
-
+# 
 #creating an early stop based on minmizing val_loss
-early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=200)
+# early_stop = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=1000,restore_best_weights=True)
+early_stop = [TerminateOnBaseline(monitor='val_loss', baseline=0.05)]
 
 #fit the model
-r = model.fit(X_train, y_train, epochs = 200000, batch_size=512,
+r = model.fit(X_train, y_train, epochs = 200000, batch_size=16400,
              validation_data = (X_test, y_test), callbacks=[early_stop], shuffle=False) #fit the data without shuffling
 #plot the results.
 pd.DataFrame(r.history).plot()
