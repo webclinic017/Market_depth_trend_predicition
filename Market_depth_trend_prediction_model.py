@@ -90,7 +90,7 @@ df['down_trend'] = np.where(df['direction']==-1,1,0)
 df = pd.concat(objs = (pd.DataFrame(df[df['same']>0].iloc[0:len(df[df['down_trend']>0])]), pd.DataFrame(df[df['up_trend']>0].iloc[0:len(df[df['down_trend']>0])]), pd.DataFrame(df[df['down_trend']>0].iloc[0:len(df[df['down_trend']>0])]))).sort_index()
 
 #Setting X and y
-X = df.iloc[:,1:-3].values
+X = df.iloc[:,1:-6].values
 y = df.iloc[:,-3:].values
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, shuffle= False) #Shuffle set to False
