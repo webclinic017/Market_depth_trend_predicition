@@ -26,6 +26,7 @@ from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import Callback
+from tensorflow.keras.utils import to_categorical
 
 
 import tensorflow as tf
@@ -82,18 +83,11 @@ df.dropna(inplace = True)
 df['direction'] = df['difference'].apply(lambda x: 1 if x>0 else -1 if x<0 else 0)
 
 
-df['same'] = np.where(df['direction']==0,1,0)
-df['up_trend'] = np.where(df['direction']==1,1,0)
-df['down_trend'] = np.where(df['direction']==-1,1,0)
-
-# balancing data to contain same directional data to help learning without biases
-df = pd.concat(objs = (pd.DataFrame(df[df['same']>0].iloc[0:len(df[df['down_trend']>0])]), pd.DataFrame(df[df['up_trend']>0].iloc[0:len(df[df['down_trend']>0])]), pd.DataFrame(df[df['down_trend']>0].iloc[0:len(df[df['down_trend']>0])]))).sort_index()
-
 #Setting X and y
 X = df.iloc[:,1:-6].values
-y = df.iloc[:,-3:].values
+y = to_categorical(df['direction'].to_numpy(),num_classes=3)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, shuffle= False) #Shuffle set to False
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
 
 #Normalizing data
